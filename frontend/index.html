@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <!-- ======================================================
+    FILE: frontend/index.html
+    PURPOSE: Main webpage — contains the map and sidebar UI
+  ====================================================== -->
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NepalTour GIS</title>
+
+  <!-- Leaflet CSS: makes the map and controls look correct -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
+  <style>
+
+    /* Reset default browser spacing */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    /* Map fills the entire browser window */
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+
+    /* -------------------------------------------------------
+       SIDEBAR: floats on top of the map (top-left corner)
+       Contains search, filters, and spatial tools
+    ------------------------------------------------------- */
+    #sidebar {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;          /* sits above the map */
+      background: white;
+      padding: 16px;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+      width: 290px;
+      max-height: 95vh;
+      overflow-y: auto;       /* scroll if content is too tall */
+    }
+
+    /* App title in sidebar */
+    #sidebar h2 {
+      font-size: 16px;
+      color: #1b4332;
+      margin-bottom: 12px;
+      border-bottom: 2px solid #2d6a4f;
+      padding-bottom: 8px;
+    }
+
+    /* Section headers inside sidebar */
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 12px 0 6px;
+    }
+
+    /* All input fields and dropdowns */
+    #sidebar input,
+    #sidebar select {
+      width: 100%;
+      padding: 7px 9px;
+      margin-bottom: 6px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 13px;
+    }
+
+    /* All buttons */
+    #sidebar button {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 5px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    /* Primary green button (main actions) */
+    .btn-primary {
+      background: #2d6a4f;
+      color: white;
+    }
+    .btn-primary:hover { background: #1b4332; }
+
+    /* Secondary grey button (spatial tools) */
+    .btn-tool {
+      background: #f0f0f0;
+      color: #333;
+      text-align: left;
+    }
+    .btn-tool:hover { background: #ddd; }
+
+    /* Active tool button (when tool is turned ON) */
+    .btn-tool.active {
+      background: #2d6a4f;
+      color: white;
+    }
+
+    /* Result box: shows output of spatial tools */
+    #toolResult {
+      font-size: 12px;
+      background: #f1f8f4;
+      border: 1px solid #b7e4c7;
+      padding: 8px;
+      border-radius: 5px;
+      margin-top: 4px;
+      display: none;           /* hidden until a tool runs */
+      line-height: 1.6;
+    }
+
+    /* Divider line between sidebar sections */
+    .divider {
+      border: none;
+      border-top: 1px solid #eee;
+      margin: 12px 0;
+    }
+
+    /* Legend color dots */
+    .legend-dot {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .legend-item {
+      font-size: 12px;
+      margin: 4px 0;
+      color: #333;
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- ======================================================
+    SIDEBAR: all user controls live here
+  ====================================================== -->
+  <div id="sidebar">
+
+    <h2>🗺️ NepalTour GIS</h2>
+
+    <!-- ATTRIBUTE TOOL 1: Search by place name -->
+    <div class="section-title">🔍 Search</div>
+    <input
+      type="text"
+      id="searchBox"
+      placeholder="Search place name e.g. Pashupatinath"
+    />
+    <button class="btn-primary" onclick="searchPlace()">Search</button>
+
+    <hr class="divider">
+
+    <!-- ATTRIBUTE TOOL 2: Filter by category -->
+    <div class="section-title">🏷️ Filter by Category</div>
+    <select id="categoryFilter">
+      <option value="all">All Categories</option>
+      <optgroup label="Heritage Sites">
+        <option value="heritage-Temple">Heritage: Temple</option>
+        <option value="heritage-Stupa">Heritage: Stupa</option>
+        <option value="heritage-Palace">Heritage: Palace</option>
+        <option value="heritage-UNESCO Site">Heritage: UNESCO Site</option>
+      </optgroup>
+      <optgroup label="Hotels">
+        <option value="hotels-Budget">Hotels: Budget</option>
+        <option value="hotels-Mid-range">Hotels: Mid-range</option>
+        <option value="hotels-Luxury">Hotels: Luxury</option>
+      </optgroup>
+      <optgroup label="Restaurants">
+        <option value="restaurants-Nepali">Restaurants: Nepali</option>
+        <option value="restaurants-Continental">Restaurants: Continental</option>
+        <option value="restaurants-Cafe">Restaurants: Cafe</option>
+        <option value="restaurants-Street Food">Restaurants: Street Food</option>
+      </optgroup>
+    </select>
+
+    <!-- ATTRIBUTE TOOL 3: Filter by province -->
+    <div class="section-title">📍 Filter by Province</div>
+    <select id="provinceFilter">
+      <option value="all">All Provinces</option>
+      <option value="Koshi">Koshi</option>
+      <option value="Madhesh">Madhesh</option>
+      <option value="Bagmati">Bagmati</option>
+      <option value="Gandaki">Gandaki</option>
+      <option value="Lumbini">Lumbini</option>
+      <option value="Karnali">Karnali</option>
+      <option value="Sudurpashchim">Sudurpashchim</option>
+    </select>
+
+    <button class="btn-primary" onclick="applyFilters()">Apply Filters</button>
+    <button class="btn-tool" onclick="resetFilters()">↺ Reset Filters</button>
+
+    <hr class="divider">
+
+    <!-- SPATIAL TOOLS -->
+    <div class="section-title">🛠️ Spatial Tools</div>
+
+    <!-- Spatial Tool 1: Buffer + Point in polygon -->
+    <button
+      class="btn-tool"
+      id="bufferBtn"
+      onclick="toggleBufferMode()"
+    >📍 Buffer Tool (click map)</button>
+
+    <!-- Spatial Tool 2: Distance measurement -->
+    <button
+      class="btn-tool"
+      id="distanceBtn"
+      onclick="toggleDistanceMode()"
+    >📏 Measure Distance (click 2 points)</button>
+
+    <!-- Spatial Tool 3: Nearest location finder -->
+    <button
+      class="btn-tool"
+      onclick="findNearest('hotels')"
+    >🏨 Find Nearest Hotel</button>
+
+    <button
+      class="btn-tool"
+      onclick="findNearest('restaurants')"
+    >🍽️ Find Nearest Restaurant</button>
+
+    <button
+      class="btn-tool"
+      onclick="findNearest('heritage')"
+    >🏛️ Find Nearest Heritage Site</button>
+
+    <!-- Output box for spatial tool results -->
+    <div id="toolResult"></div>
+
+    <hr class="divider">
+
+    <!-- LEGEND -->
+    <div class="section-title">🗒️ Legend</div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:#9b2226;"></span>Heritage Site
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:#1d3557;"></span>Hotel
+    </div>
+    <div class="legend-item">
+      <span class="legend-dot" style="background:#ca6702;"></span>Restaurant
+    </div>
+
+    <hr class="divider">
+
+    <!-- ATTRIBUTE TOOL: Show/hide attribute table -->
+    <div class="section-title">📋 Attribute Table</div>
+    <select id="tableLayerSelect">
+      <option value="heritage">Heritage Sites</option>
+      <option value="hotels">Hotels</option>
+      <option value="restaurants">Restaurants</option>
+    </select>
+    <button class="btn-tool" onclick="showAttributeTable()">
+      Show Attribute Table
+    </button>
+
+  </div>
+
+  <!-- ======================================================
+    ATTRIBUTE TABLE MODAL
+    Hidden by default, shown when user clicks "Show Attribute Table"
+  ====================================================== -->
+  <div id="tableModal" style="
+    display:none;
+    position:absolute;
+    bottom:0; left:0; right:0;
+    background:white;
+    z-index:2000;
+    max-height:35vh;
+    overflow-y:auto;
+    border-top:3px solid #2d6a4f;
+    padding:10px;
+  ">
+    <button
+      onclick="document.getElementById('tableModal').style.display='none'"
+      style="float:right; background:#c00; color:white; border:none;
+             padding:4px 10px; border-radius:4px; cursor:pointer;"
+    >✕ Close</button>
+    <div id="tableContent"></div>
+  </div>
+
+  <!-- ======================================================
+    THE MAP DIV
+    Leaflet will render the map inside this element
+  ====================================================== -->
+  <div id="map"></div>
+
+  <!-- Leaflet JavaScript library -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Turf.js: client-side spatial analysis (buffer, distance, etc.) -->
+  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+  <!-- Our map logic (File 7) -->
+  <script src="app.js"></script>
+
+</body>
+</html>

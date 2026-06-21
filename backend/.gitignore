@@ -1,0 +1,11 @@
+# FILE: backend/.gitignore
+# PURPOSE: Tells Git what to never upload to GitHub
+
+# Secret configuration — contains database password
+.env
+
+# Downloaded packages — recreated by running "npm install"
+node_modules/
+
+# Mac system file (ignore if you're on Windows, doesn't hurt to include)
+.DS_Store
